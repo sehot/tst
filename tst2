@@ -1,0 +1,132 @@
+import csv
+import os
+from datetime import datetime
+from collections import defaultdict
+
+DATA_FILE = 'expenses.csv'
+DATE_FORMAT = '%Y-%m-%d'
+
+class Expense:
+    def __init__(self, date, category, amount, description):
+        self.date = datetime.strptime(date, DATE_FORMAT)
+        self.category = category
+        self.amount = float(amount)
+        self.description = description
+
+    def to_csv_row(self):
+        return [self.date.strftime(DATE_FORMAT), self.category, f"{self.amount:.2f}", self.description]
+
+    @staticmethod
+    def from_csv_row(row):
+        return Expense(row[0], row[1], row[2], row[3])
+
+    def __str__(self):
+        return f"{self.date.strftime(DATE_FORMAT)} | {self.category:<10} | ${self.amount:<8.2f} | {self.description}"
+
+class ExpenseTracker:
+    def __init__(self):
+        self.expenses = []
+        self.load_expenses()
+
+    def add_expense(self, expense):
+        self.expenses.append(expense)
+        self.save_expenses()
+
+    def delete_expense(self, index):
+        if 0 <= index < len(self.expenses):
+            del self.expenses[index]
+            self.save_expenses()
+
+    def edit_expense(self, index, new_expense):
+        if 0 <= index < len(self.expenses):
+            self.expenses[index] = new_expense
+            self.save_expenses()
+
+    def view_expenses(self):
+        if not self.expenses:
+            print("No expenses found.")
+        for idx, expense in enumerate(self.expenses):
+            print(f"{idx + 1:>3}: {expense}")
+
+    def load_expenses(self):
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, newline='', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                self.expenses = [Expense.from_csv_row(row) for row in reader]
+
+    def save_expenses(self):
+        with open(DATA_FILE, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            for expense in self.expenses:
+                writer.writerow(expense.to_csv_row())
+
+    def generate_report(self):
+        if not self.expenses:
+            print("No data to generate report.")
+            return
+        total = sum(e.amount for e in self.expenses)
+        by_category = defaultdict(float)
+        for e in self.expenses:
+            by_category[e.category] += e.amount
+        print("\n--- Report ---")
+        print(f"Total Expenses: ${total:.2f}")
+        print("By Category:")
+        for cat, amt in by_category.items():
+            print(f" - {cat}: ${amt:.2f}")
+        print("--------------\n")
+
+def get_expense_input():
+    date_str = input("Enter date (YYYY-MM-DD): ")
+    category = input("Enter category (e.g., Food, Transport): ")
+    amount = input("Enter amount: ")
+    description = input("Enter description: ")
+    return Expense(date_str, category, amount, description)
+
+def main_menu():
+    tracker = ExpenseTracker()
+    while True:
+        print("\n=== Expense Tracker ===")
+        print("1. View Expenses")
+        print("2. Add Expense")
+        print("3. Edit Expense")
+        print("4. Delete Expense")
+        print("5. Generate Report")
+        print("6. Exit")
+
+        choice = input("Select an option: ")
+        if choice == '1':
+            tracker.view_expenses()
+        elif choice == '2':
+            try:
+                expense = get_expense_input()
+                tracker.add_expense(expense)
+                print("Expense added.")
+            except Exception as e:
+                print(f"Error: {e}")
+        elif choice == '3':
+            tracker.view_expenses()
+            try:
+                idx = int(input("Enter expense number to edit: ")) - 1
+                new_expense = get_expense_input()
+                tracker.edit_expense(idx, new_expense)
+                print("Expense updated.")
+            except Exception as e:
+                print(f"Error: {e}")
+        elif choice == '4':
+            tracker.view_expenses()
+            try:
+                idx = int(input("Enter expense number to delete: ")) - 1
+                tracker.delete_expense(idx)
+                print("Expense deleted.")
+            except Exception as e:
+                print(f"Error: {e}")
+        elif choice == '5':
+            tracker.generate_report()
+        elif choice == '6':
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid option. Please try again.")
+
+if __name__ == '__main__':
+    main_menu()
